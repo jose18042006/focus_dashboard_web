@@ -1,17 +1,31 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { ShieldAlert, Users, Flame } from 'lucide-react';
 
 export default function RoomMonitor() {
-  const activeRooms = [
-    { id: 1, name: 'Sala de Estudio: Álgebra Lineal', host: 'Prof. Carlos Retamal', participants: 18, avgFocus: '89%', status: 'Alta Concentración' },
-    { id: 2, name: 'Laboratorio de Programación Python', host: 'Dra. María Paz', participants: 32, avgFocus: '74%', status: 'Normal' },
-    { id: 3, name: 'Grupo de Repaso: Historia Universal', host: 'Prof. Juan Pérez', participants: 8, avgFocus: '45%', status: 'Distracción Detectada' },
-  ];
+  const [activeRooms, setActiveRooms] = useState([]);
+  const [loading, setLoading] = useState(true);
+
+  // Llamada HTTP al endpoint de salas del BFF
+  useEffect(() => {
+    fetch('http://localhost:3001/api/rooms')
+      .then(res => res.json())
+      .then(data => {
+        setActiveRooms(data);
+        setLoading(false);
+      })
+      .catch(err => {
+        console.error("Error al traer las salas desde el BFF:", err);
+        setLoading(false);
+      });
+  }, []);
+
+  if (loading) {
+    return <div style={{ color: '#64748b', fontSize: '14px', marginTop: '20px' }}>Escaneando dimensiones y salas activas...</div>;
+  }
 
   return (
     <div style={{
       display: 'grid',
-      // Bajamos el tamaño mínimo de las tarjetas a 280px para que quepan holgadamente en pantallas más chicas
       gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))',
       gap: '24px',
       marginTop: '24px',
@@ -82,6 +96,12 @@ export default function RoomMonitor() {
           </div>
         </div>
       ))}
+
+      {activeRooms.length === 0 && (
+        <div style={{ gridColumn: '1/-1', padding: '40px', textAlign: 'center', color: '#94a3b8', backgroundColor: '#fff', borderRadius: '12px' }}>
+          No hay salas activas creadas en este momento por ningún Dungeon Master.
+        </div>
+      )}
     </div>
   );
 }

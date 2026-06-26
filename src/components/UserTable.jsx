@@ -1,26 +1,20 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Search, UserPlus, Edit2, Trash2, Check, X, AlertTriangle } from 'lucide-react';
 
 export default function UserTable() {
-  const [users, setUsers] = useState([
-    { id: 1, name: 'Ignacio Silva', email: 'ignacio@focus.cl', role: 'Alumno', status: 'Activo' },
-    { id: 2, name: 'Valeria Constanzo', email: 'v.constanzo@focus.cl', role: 'Dungeon Master', status: 'Activo' },
-    { id: 3, name: 'Bastián Muñoz', email: 'bastian.m@focus.cl', role: 'Alumno', status: 'Inactivo' },
-    { id: 4, name: 'Camila Rojas', email: 'camila.rojas@focus.cl', role: 'Alumno', status: 'Activo' },
-  ]);
-
+  const [users, setUsers] = useState([]);
+  const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
-  
-  // Estados para controlar el modal de agregar/editar
+
+  // Estados para los Modales
   const [isModalOpen, setIsModalOpen] = useState(false);
-  const [modalMode, setModalMode] = useState('add'); // 'add' o 'edit'
-  const [selectedUser, setSelectedUser] = useState(null);
+  const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
   
-  // Estados para el modal personalizado de confirmación de eliminación
-  const [isDeleteConfirmOpen, setIsDeleteConfirmOpen] = useState(false);
+  // Estado para el usuario seleccionado (Crear o Editar)
+  const [editingUser, setEditingUser] = useState(null);
   const [userToDelete, setUserToDelete] = useState(null);
 
-  // Datos temporales del formulario (por defecto rol Alumno)
+  // Campos del Formulario
   const [formData, setFormData] = useState({
     name: '',
     email: '',
@@ -28,17 +22,35 @@ export default function UserTable() {
     status: 'Activo'
   });
 
-  // Abrir modal para crear nuevo usuario
-  const handleOpenAddModal = () => {
-    setModalMode('add');
+  // 1. OBTENER USUARIOS (GET)
+  const fetchUsers = () => {
+    setLoading(true);
+    fetch('http://localhost:3001/api/users')
+      .then(res => res.json())
+      .then(data => {
+        setUsers(data);
+        setLoading(false);
+      })
+      .catch(err => {
+        console.error("Error al traer usuarios del BFF:", err);
+        setLoading(false);
+      });
+  };
+
+  useEffect(() => {
+    fetchUsers();
+  }, []);
+
+  // Abrir modal para crear nuevo
+  const handleOpenCreateModal = () => {
+    setEditingUser(null);
     setFormData({ name: '', email: '', role: 'Alumno', status: 'Activo' });
     setIsModalOpen(true);
   };
 
-  // Abrir modal para editar un usuario existente
+  // Abrir modal para editar existente
   const handleOpenEditModal = (user) => {
-    setModalMode('edit');
-    setSelectedUser(user);
+    setEditingUser(user);
     setFormData({
       name: user.name,
       email: user.email,
@@ -48,55 +60,75 @@ export default function UserTable() {
     setIsModalOpen(true);
   };
 
-  // Guardar datos (Creación o Modificación)
+  // 2. GUARDAR USUARIO (POST para crear / PUT para editar)
   const handleSaveUser = (e) => {
     e.preventDefault();
-    if (!formData.name || !formData.email) return;
 
-    if (modalMode === 'add') {
-      const newUser = {
-        id: Date.now(), // ID temporal único
-        ...formData
-      };
-      setUsers([...users, newUser]);
+    if (editingUser) {
+      // MODO EDICIÓN (PUT)
+      fetch(`http://localhost:3001/api/users/${editingUser.id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(formData)
+      })
+      .then(res => res.json())
+      .then(() => {
+        fetchUsers(); // Recargamos la lista desde el servidor bff
+        setIsModalOpen(false);
+      })
+      .catch(err => console.error("Error al actualizar usuario:", err));
     } else {
-      setUsers(users.map(u => u.id === selectedUser.id ? { ...u, ...formData } : u));
+      // MODO CREACIÓN (POST)
+      fetch('http://localhost:3001/api/users', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(formData)
+      })
+      .then(res => res.json())
+      .then(() => {
+        fetchUsers(); // Recargamos la lista desde el servidor bff
+        setIsModalOpen(false);
+      })
+      .catch(err => console.error("Error al crear usuario:", err));
     }
-    setIsModalOpen(false);
   };
 
-  // Iniciar flujo de confirmación de borrado
-  const handleRequestDelete = (user) => {
+  // Abrir modal de confirmación de eliminación
+  const handleOpenDeleteModal = (user) => {
     setUserToDelete(user);
-    setIsDeleteConfirmOpen(true);
+    setIsDeleteModalOpen(true);
   };
 
-  // Confirmar eliminación final
+  // 3. ELIMINAR USUARIO (DELETE)
   const handleConfirmDelete = () => {
-    setUsers(users.filter(u => u.id !== userToDelete.id));
-    setIsDeleteConfirmOpen(false);
-    setUserToDelete(null);
+    if (!userToDelete) return;
+
+    fetch(`http://localhost:3001/api/users/${userToDelete.id}`, {
+      method: 'DELETE'
+    })
+    .then(res => res.json())
+    .then(() => {
+      fetchUsers(); // Recargamos la lista desde el servidor bff
+      setIsDeleteModalOpen(false);
+      setUserToDelete(null);
+    })
+    .catch(err => console.error("Error al eliminar usuario:", err));
   };
 
-  // Filtrado de usuarios por la barra de búsqueda
+  // Filtrado por buscador
   const filteredUsers = users.filter(user => 
     user.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
     user.email.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
+  if (loading) {
+    return <div style={{ color: '#64748b', fontSize: '14px', marginTop: '20px' }}>Cargando gremio de usuarios...</div>;
+  }
+
   return (
-    <div style={{ marginTop: '24px', width: '100%', position: 'relative' }}>
-      
-      {}
-      <div style={{
-        display: 'flex',
-        flexWrap: 'wrap',
-        justifyContent: 'space-between',
-        alignItems: 'center',
-        marginBottom: '20px',
-        gap: '16px'
-      }}>
-        {/* Buscador */}
+    <div style={{ marginTop: '24px', width: '100%' }}>
+      {/* Barra de Herramientas */}
+      <div style={{ display: 'flex', flexWrap: 'wrap', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px', gap: '16px' }}>
         <div style={{ position: 'relative', flex: 1, minWidth: '260px', maxWidth: '400px' }}>
           <Search size={18} style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', color: '#9ca3af' }} />
           <input
@@ -104,51 +136,21 @@ export default function UserTable() {
             placeholder="Buscar por nombre o correo..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
-            style={{
-              width: '100%',
-              padding: '10px 12px 10px 40px',
-              borderRadius: '8px',
-              border: '1px solid #e2e8f0',
-              fontSize: '14px',
-              boxSizing: 'border-box',
-              outline: 'none',
-              backgroundColor: '#fff'
-            }}
+            style={{ width: '100%', padding: '10px 12px 10px 40px', borderRadius: '8px', border: '1px solid #e2e8f0', fontSize: '14px', outline: 'none', backgroundColor: '#fff' }}
           />
         </div>
 
-        {/* Botón Nuevo Usuario */}
         <button 
-          onClick={handleOpenAddModal}
-          style={{
-            display: 'flex',
-            alignItems: 'center',
-            gap: '8px',
-            backgroundColor: '#4f46e5',
-            color: '#fff',
-            padding: '10px 16px',
-            borderRadius: '8px',
-            border: 'none',
-            fontSize: '14px',
-            fontWeight: '500',
-            cursor: 'pointer',
-            boxShadow: '0 4px 12px rgba(79, 70, 229, 0.15)',
-            transition: 'all 0.2s'
-          }}
+          onClick={handleOpenCreateModal}
+          style={{ display: 'flex', alignItems: 'center', gap: '8px', backgroundColor: '#4f46e5', color: '#fff', padding: '10px 16px', borderRadius: '8px', border: 'none', fontSize: '14px', fontWeight: '500', cursor: 'pointer' }}
         >
           <UserPlus size={16} />
           Nuevo Usuario
         </button>
       </div>
 
-      {}
-      <div style={{ 
-        backgroundColor: '#fff', 
-        borderRadius: '12px', 
-        boxShadow: '0 1px 3px rgba(0,0,0,0.05)', 
-        overflowX: 'auto',
-        width: '100%'
-      }}>
+      {/* Tabla */}
+      <div style={{ backgroundColor: '#fff', borderRadius: '12px', boxShadow: '0 1px 3px rgba(0,0,0,0.05)', overflowX: 'auto', width: '100%' }}>
         <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '14px', minWidth: '600px' }}>
           <thead>
             <tr style={{ backgroundColor: '#f8fafc', borderBottom: '1px solid #e2e8f0' }}>
@@ -161,227 +163,77 @@ export default function UserTable() {
           </thead>
           <tbody>
             {filteredUsers.map((user) => (
-              <tr key={user.id} style={{ borderBottom: '1px solid #f1f5f9', transition: 'background-color 0.2s' }}>
+              <tr key={user.id} style={{ borderBottom: '1px solid #f1f5f9' }}>
                 <td style={{ padding: '16px 24px', color: '#0f172a', fontWeight: '500' }}>{user.name}</td>
                 <td style={{ padding: '16px 24px', color: '#475569' }}>{user.email}</td>
                 <td style={{ padding: '16px 24px' }}>
                   <span style={{
-                    // Color de insignia morada/mágica para los Dungeon Masters
                     backgroundColor: user.role === 'Dungeon Master' ? '#f5f3ff' : '#f1f5f9',
                     color: user.role === 'Dungeon Master' ? '#7c3aed' : '#334155',
-                    padding: '4px 8px',
-                    borderRadius: '6px',
-                    fontSize: '12px',
-                    fontWeight: '600',
-                    border: user.role === 'Dungeon Master' ? '1px solid #ddd6fe' : '1px solid transparent'
+                    border: user.role === 'Dungeon Master' ? '1px solid #e9e3ff' : 'none',
+                    padding: '4px 8px', borderRadius: '6px', fontSize: '12px', fontWeight: '600'
                   }}>
                     {user.role}
                   </span>
                 </td>
                 <td style={{ padding: '16px 24px' }}>
-                  <span style={{
-                    display: 'inline-flex',
-                    alignItems: 'center',
-                    gap: '4px',
-                    color: user.status === 'Activo' ? '#16a34a' : '#dc2626',
-                    fontWeight: '500'
-                  }}>
+                  <span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', color: user.status === 'Activo' ? '#16a34a' : '#dc2626', fontWeight: '500' }}>
                     {user.status === 'Activo' ? <Check size={14} /> : <X size={14} />}
                     {user.status}
                   </span>
                 </td>
                 <td style={{ padding: '16px 24px' }}>
                   <div style={{ display: 'flex', gap: '12px' }}>
-                    <button 
-                      onClick={() => handleOpenEditModal(user)}
-                      style={{ background: 'none', border: 'none', color: '#4f46e5', cursor: 'pointer', padding: 0 }}
-                    >
+                    <button onClick={() => handleOpenEditModal(user)} style={{ background: 'none', border: 'none', color: '#4f46e5', cursor: 'pointer', padding: 0 }}>
                       <Edit2 size={16} />
                     </button>
-                    <button 
-                      onClick={() => handleRequestDelete(user)}
-                      style={{ background: 'none', border: 'none', color: '#ef4444', cursor: 'pointer', padding: 0 }}
-                    >
+                    <button onClick={() => handleOpenDeleteModal(user)} style={{ background: 'none', border: 'none', color: '#ef4444', cursor: 'pointer', padding: 0 }}>
                       <Trash2 size={16} />
                     </button>
                   </div>
                 </td>
               </tr>
             ))}
-            {filteredUsers.length === 0 && (
-              <tr>
-                <td colSpan="5" style={{ padding: '32px', textAlign: 'center', color: '#9ca3af' }}>
-                  No se encontraron usuarios que coincidan con la búsqueda.
-                </td>
-              </tr>
-            )}
           </tbody>
         </table>
       </div>
 
-      {}
+      {/* FORM MODAL (CREAR / EDITAR) */}
       {isModalOpen && (
-        <div style={{
-          position: 'fixed',
-          top: 0,
-          left: 0,
-          width: '100vw',
-          height: '100vh',
-          backgroundColor: 'rgba(15, 23, 42, 0.4)',
-          backdropFilter: 'blur(4px)',
-          display: 'flex',
-          justifyContent: 'center',
-          alignItems: 'center',
-          zIndex: 1000,
-        }}>
-          <div style={{
-            backgroundColor: '#fff',
-            borderRadius: '16px',
-            width: '100%',
-            maxWidth: '480px',
-            padding: '32px',
-            boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04)'
-          }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px' }}>
-              <h3 style={{ margin: 0, fontSize: '20px', fontWeight: '700', color: '#0f172a' }}>
-                {modalMode === 'add' ? 'Crear Nuevo Usuario' : 'Editar Usuario'}
-              </h3>
-              <button 
-                onClick={() => setIsModalOpen(false)}
-                style={{ background: 'none', border: 'none', color: '#94a3b8', cursor: 'pointer', padding: '4px' }}
-              >
-                <X size={20} />
-              </button>
-            </div>
-
-            <form onSubmit={handleSaveUser} style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
-              {/* Campo Nombre */}
+        <div style={{ position: 'fixed', top: 0, left: 0, width: '100vw', height: '100vh', backgroundColor: 'rgba(15, 23, 42, 0.4)', backdropFilter: 'blur(4px)', display: 'flex', justifyContent: 'center', alignItems: 'center', zIndex: 1000 }}>
+          <div style={{ backgroundColor: '#fff', borderRadius: '16px', padding: '32px', width: '100%', maxWidth: '480px', boxShadow: '0 20px 25px -5px rgba(0,0,0,0.1)' }}>
+            <h3 style={{ margin: 0, fontSize: '20px', fontWeight: '700', color: '#0f172a' }}>
+              {editingUser ? 'Editar Cuenta' : 'Registrar Nuevo Aventurero'}
+            </h3>
+            <form onSubmit={handleSaveUser} style={{ marginTop: '24px', display: 'flex', flexDirection: 'column', gap: '16px' }}>
               <div>
-                <label style={{ display: 'block', fontSize: '13px', fontWeight: '600', color: '#475569', marginBottom: '6px' }}>
-                  Nombre Completo
-                </label>
-                <input 
-                  type="text" 
-                  required
-                  placeholder="Ej: Juan Pérez"
-                  value={formData.name}
-                  onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                  style={{
-                    width: '100%',
-                    padding: '10px 14px',
-                    borderRadius: '8px',
-                    border: '1px solid #cbd5e1',
-                    fontSize: '14px',
-                    outline: 'none',
-                    boxSizing: 'border-box'
-                  }}
-                />
+                <label style={{ display: 'block', fontSize: '13px', fontWeight: '600', color: '#475569', marginBottom: '6px' }}>Nombre Completo</label>
+                <input required type="text" value={formData.name} onChange={(e) => setFormData({...formData, name: e.target.value})} style={{ width: '100%', padding: '10px 12px', borderRadius: '8px', border: '1px solid #e2e8f0', fontSize: '14px', outline: 'none' }} />
               </div>
-
-              {/* Campo Correo */}
               <div>
-                <label style={{ display: 'block', fontSize: '13px', fontWeight: '600', color: '#475569', marginBottom: '6px' }}>
-                  Correo Electrónico
-                </label>
-                <input 
-                  type="email" 
-                  required
-                  placeholder="Ej: juan.perez@focus.cl"
-                  value={formData.email}
-                  onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                  style={{
-                    width: '100%',
-                    padding: '10px 14px',
-                    borderRadius: '8px',
-                    border: '1px solid #cbd5e1',
-                    fontSize: '14px',
-                    outline: 'none',
-                    boxSizing: 'border-box'
-                  }}
-                />
+                <label style={{ display: 'block', fontSize: '13px', fontWeight: '600', color: '#475569', marginBottom: '6px' }}>Correo Electrónico</label>
+                <input required type="email" value={formData.email} onChange={(e) => setFormData({...formData, email: e.target.value})} style={{ width: '100%', padding: '10px 12px', borderRadius: '8px', border: '1px solid #e2e8f0', fontSize: '14px', outline: 'none' }} />
               </div>
-
-              {/* Campo Rol */}
-              <div>
-                <label style={{ display: 'block', fontSize: '13px', fontWeight: '600', color: '#475569', marginBottom: '6px' }}>
-                  Rol en la App
-                </label>
-                <select 
-                  value={formData.role}
-                  onChange={(e) => setFormData({ ...formData, role: e.target.value })}
-                  style={{
-                    width: '100%',
-                    padding: '10px 14px',
-                    borderRadius: '8px',
-                    border: '1px solid #cbd5e1',
-                    fontSize: '14px',
-                    outline: 'none',
-                    boxSizing: 'border-box',
-                    backgroundColor: '#fff'
-                  }}
-                >
-                  <option value="Alumno">Alumno</option>
-                  <option value="Dungeon Master">Dungeon Master</option>
-                </select>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
+                <div>
+                  <label style={{ display: 'block', fontSize: '13px', fontWeight: '600', color: '#475569', marginBottom: '6px' }}>Rol Asignado</label>
+                  <select value={formData.role} onChange={(e) => setFormData({...formData, role: e.target.value})} style={{ width: '100%', padding: '10px 12px', borderRadius: '8px', border: '1px solid #e2e8f0', fontSize: '14px', backgroundColor: '#fff', outline: 'none' }}>
+                    <option value="Alumno">Alumno</option>
+                    <option value="Dungeon Master">Dungeon Master</option>
+                  </select>
+                </div>
+                <div>
+                  <label style={{ display: 'block', fontSize: '13px', fontWeight: '600', color: '#475569', marginBottom: '6px' }}>Estado Inicial</label>
+                  <select value={formData.status} onChange={(e) => setFormData({...formData, status: e.target.value})} style={{ width: '100%', padding: '10px 12px', borderRadius: '8px', border: '1px solid #e2e8f0', fontSize: '14px', backgroundColor: '#fff', outline: 'none' }}>
+                    <option value="Activo">Activo</option>
+                    <option value="Inactivo">Inactivo</option>
+                  </select>
+                </div>
               </div>
-
-              {/* Campo Estado */}
-              <div>
-                <label style={{ display: 'block', fontSize: '13px', fontWeight: '600', color: '#475569', marginBottom: '6px' }}>
-                  Estado Inicial
-                </label>
-                <select 
-                  value={formData.status}
-                  onChange={(e) => setFormData({ ...formData, status: e.target.value })}
-                  style={{
-                    width: '100%',
-                    padding: '10px 14px',
-                    borderRadius: '8px',
-                    border: '1px solid #cbd5e1',
-                    fontSize: '14px',
-                    outline: 'none',
-                    boxSizing: 'border-box',
-                    backgroundColor: '#fff'
-                  }}
-                >
-                  <option value="Activo">Activo</option>
-                  <option value="Inactivo">Inactivo</option>
-                </select>
-              </div>
-
-              {/* Botones de acción del Modal */}
-              <div style={{ display: 'flex', gap: '12px', marginTop: '12px', justifyContent: 'flex-end' }}>
-                <button 
-                  type="button"
-                  onClick={() => setIsModalOpen(false)}
-                  style={{
-                    padding: '10px 18px',
-                    border: '1px solid #cbd5e1',
-                    borderRadius: '8px',
-                    backgroundColor: '#fff',
-                    color: '#475569',
-                    fontSize: '14px',
-                    fontWeight: '500',
-                    cursor: 'pointer'
-                  }}
-                >
-                  Cancelar
-                </button>
-                <button 
-                  type="submit"
-                  style={{
-                    padding: '10px 18px',
-                    border: 'none',
-                    borderRadius: '8px',
-                    backgroundColor: '#4f46e5',
-                    color: '#fff',
-                    fontSize: '14px',
-                    fontWeight: '500',
-                    cursor: 'pointer',
-                    boxShadow: '0 4px 12px rgba(79, 70, 229, 0.15)'
-                  }}
-                >
-                  {modalMode === 'add' ? 'Registrar' : 'Guardar Cambios'}
+              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '12px', marginTop: '12px' }}>
+                <button type="button" onClick={() => setIsModalOpen(false)} style={{ padding: '10px 16px', borderRadius: '8px', border: '1px solid #e2e8f0', backgroundColor: '#fff', color: '#475569', fontSize: '14px', fontWeight: '500', cursor: 'pointer' }}>Cancelar</button>
+                <button type="submit" style={{ padding: '10px 16px', borderRadius: '8px', border: 'none', backgroundColor: '#4f46e5', color: '#fff', fontSize: '14px', fontWeight: '500', cursor: 'pointer' }}>
+                  {editingUser ? 'Guardar Cambios' : 'Registrar'}
                 </button>
               </div>
             </form>
@@ -389,90 +241,24 @@ export default function UserTable() {
         </div>
       )}
 
-      {}
-      {isDeleteConfirmOpen && (
-        <div style={{
-          position: 'fixed',
-          top: 0,
-          left: 0,
-          width: '100vw',
-          height: '100vh',
-          backgroundColor: 'rgba(15, 23, 42, 0.4)',
-          backdropFilter: 'blur(4px)',
-          display: 'flex',
-          justifyContent: 'center',
-          alignItems: 'center',
-          zIndex: 1000,
-        }}>
-          <div style={{
-            backgroundColor: '#fff',
-            borderRadius: '16px',
-            width: '100%',
-            maxWidth: '400px',
-            padding: '32px',
-            boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.1)',
-            textAlign: 'center'
-          }}>
-            <div style={{
-              backgroundColor: '#fee2e2',
-              color: '#ef4444',
-              width: '48px',
-              height: '48px',
-              borderRadius: '50%',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              margin: '0 auto 16px auto'
-            }}>
+      {/* MODAL DE ADVERTENCIA PARA ELIMINAR */}
+      {isDeleteModalOpen && (
+        <div style={{ position: 'fixed', top: 0, left: 0, width: '100vw', height: '100vh', backgroundColor: 'rgba(15, 23, 42, 0.4)', backdropFilter: 'blur(4px)', display: 'flex', justifyContent: 'center', alignItems: 'center', zIndex: 1000 }}>
+          <div style={{ backgroundColor: '#fff', borderRadius: '16px', padding: '32px', width: '100%', maxWidth: '400px', textAlign: 'center', boxShadow: '0 20px 25px -5px rgba(0,0,0,0.1)' }}>
+            <div style={{ backgroundColor: '#fef2f2', color: '#dc2626', width: '48px', height: '48px', borderRadius: '50%', display: 'flex', alignItems: 'center', justifycontent: 'center', margin: '0 auto 16px auto', justifyContent: 'center' }}>
               <AlertTriangle size={24} />
             </div>
-
-            <h3 style={{ margin: '0 0 8px 0', fontSize: '18px', fontWeight: '700', color: '#0f172a' }}>
-              ¿Eliminar usuario?
-            </h3>
-            <p style={{ margin: '0 0 24px 0', fontSize: '14px', color: '#64748b', lineHeight: '1.5' }}>
-              ¿Estás seguro de que deseas eliminar a <strong>{userToDelete?.name}</strong>? Esta acción no se puede deshacer.
+            <h3 style={{ margin: 0, fontSize: '18px', fontWeight: '700', color: '#0f172a' }}>¿Eliminar usuario?</h3>
+            <p style={{ marginTop: '8px', marginBottom: '24px', fontSize: '14px', color: '#64748b', lineHeight: '1.5' }}>
+              Esta acción removerá permanentemente a <strong>{userToDelete?.name}</strong> del sistema. Esta operación no se puede deshacer.
             </p>
-
             <div style={{ display: 'flex', gap: '12px', justifyContent: 'center' }}>
-              <button 
-                onClick={() => setIsDeleteConfirmOpen(false)}
-                style={{
-                  padding: '10px 18px',
-                  border: '1px solid #cbd5e1',
-                  borderRadius: '8px',
-                  backgroundColor: '#fff',
-                  color: '#475569',
-                  fontSize: '14px',
-                  fontWeight: '500',
-                  cursor: 'pointer',
-                  flex: 1
-                }}
-              >
-                No, mantener
-              </button>
-              <button 
-                onClick={handleConfirmDelete}
-                style={{
-                  padding: '10px 18px',
-                  border: 'none',
-                  borderRadius: '8px',
-                  backgroundColor: '#ef4444',
-                  color: '#fff',
-                  fontSize: '14px',
-                  fontWeight: '500',
-                  cursor: 'pointer',
-                  flex: 1,
-                  boxShadow: '0 4px 12px rgba(239, 68, 68, 0.15)'
-                }}
-              >
-                Sí, eliminar
-              </button>
+              <button onClick={() => setIsDeleteModalOpen(false)} style={{ flex: 1, padding: '10px 16px', borderRadius: '8px', border: '1px solid #e2e8f0', backgroundColor: '#fff', color: '#475569', fontSize: '14px', fontWeight: '500', cursor: 'pointer' }}>Volver atrás</button>
+              <button onClick={handleConfirmDelete} style={{ flex: 1, padding: '10px 16px', borderRadius: '8px', border: 'none', backgroundColor: '#dc2626', color: '#fff', fontSize: '14px', fontWeight: '500', cursor: 'pointer' }}>Sí, eliminar</button>
             </div>
           </div>
         </div>
       )}
-
     </div>
   );
 }
