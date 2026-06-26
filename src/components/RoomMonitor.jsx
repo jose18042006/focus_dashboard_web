@@ -2,7 +2,6 @@ import React from 'react';
 import { ShieldAlert, Users, Flame } from 'lucide-react';
 
 export default function RoomMonitor() {
-  // Datos de prueba de salas activas en la app
   const activeRooms = [
     { id: 1, name: 'Sala de Estudio: Álgebra Lineal', host: 'Prof. Carlos Retamal', participants: 18, avgFocus: '89%', status: 'Alta Concentración' },
     { id: 2, name: 'Laboratorio de Programación Python', host: 'Dra. María Paz', participants: 32, avgFocus: '74%', status: 'Normal' },
@@ -12,9 +11,11 @@ export default function RoomMonitor() {
   return (
     <div style={{
       display: 'grid',
-      gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))',
+      // Bajamos el tamaño mínimo de las tarjetas a 280px para que quepan holgadamente en pantallas más chicas
+      gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))',
       gap: '24px',
-      marginTop: '24px'
+      marginTop: '24px',
+      width: '100%'
     }}>
       {activeRooms.map((room) => (
         <div 
@@ -27,50 +28,57 @@ export default function RoomMonitor() {
             borderTop: `4px solid ${
               room.status === 'Alta Concentración' ? '#10b981' : 
               room.status === 'Normal' ? '#4f46e5' : '#ef4444'
-            }`
+            }`,
+            display: 'flex',
+            flexDirection: 'column',
+            justifyContent: 'space-between',
+            minHeight: '220px'
           }}
         >
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '12px' }}>
-            <div>
-              <h3 style={{ margin: 0, fontSize: '16px', fontWeight: 'bold', color: '#111827' }}>{room.name}</h3>
-              <p style={{ margin: '4px 0 0 0', fontSize: '13px', color: '#6b7280' }}>Creador: {room.host}</p>
-            </div>
+          <div>
+            <h3 style={{ margin: 0, fontSize: '16px', fontWeight: 'bold', color: '#111827', lineHeight: '1.4' }}>
+              {room.name}
+            </h3>
+            <p style={{ margin: '6px 0 0 0', fontSize: '13px', color: '#6b7280' }}>
+              Creador: {room.host}
+            </p>
           </div>
 
-          <hr style={{ border: 'none', borderTop: '1px solid #f3f4f6', margin: '16px 0' }} />
+          <div>
+            <hr style={{ border: 'none', borderTop: '1px solid #f3f4f6', margin: '16px 0' }} />
 
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '6px', color: '#4b5563', fontSize: '14px' }}>
-              <Users size={16} />
-              <span>{room.participants} alumnos</span>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '6px', color: '#4b5563', fontSize: '14px' }}>
+                <Users size={16} />
+                <span>{room.participants} alumnos</span>
+              </div>
+              
+              <div style={{ display: 'flex', alignItems: 'center', gap: '6px', color: '#4b5563', fontSize: '14px' }}>
+                <Flame size={16} style={{ color: '#f59e0b' }} />
+                <span>Focus: <strong>{room.avgFocus}</strong></span>
+              </div>
             </div>
-            
-            <div style={{ display: 'flex', alignItems: 'center', gap: '6px', color: '#4b5563', fontSize: '14px' }}>
-              <Flame size={16} style={{ color: '#f59e0b' }} />
-              <span>Focus: <strong>{room.avgFocus}</strong></span>
-            </div>
-          </div>
 
-          <div style={{
-            marginTop: '16px',
-            backgroundColor: `${
-              room.status === 'Alta Concentración' ? '#e6f4ea' : 
-              room.status === 'Normal' ? '#eff6ff' : '#fce8e6'
-            }`,
-            color: `${
-              room.status === 'Alta Concentración' ? '#137333' : 
-              room.status === 'Normal' ? '#1c3aa9' : '#c5221f'
-            }`,
-            padding: '8px 12px',
-            borderRadius: '6px',
-            fontSize: '12px',
-            fontWeight: '600',
-            display: 'flex',
-            alignItems: 'center',
-            gap: '6px'
-          }}>
-            {room.status === 'Distracción Detectada' && <ShieldAlert size={14} />}
-            Status: {room.status}
+            <div style={{
+              backgroundColor: `${
+                room.status === 'Alta Concentración' ? '#e6f4ea' : 
+                room.status === 'Normal' ? '#eff6ff' : '#fce8e6'
+              }`,
+              color: `${
+                room.status === 'Alta Concentración' ? '#137333' : 
+                room.status === 'Normal' ? '#1c3aa9' : '#c5221f'
+              }`,
+              padding: '8px 12px',
+              borderRadius: '6px',
+              fontSize: '12px',
+              fontWeight: '600',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '6px'
+            }}>
+              {room.status === 'Distracción Detectada' && <ShieldAlert size={14} />}
+              Status: {room.status}
+            </div>
           </div>
         </div>
       ))}
